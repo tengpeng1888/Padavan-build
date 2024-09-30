@@ -1,5 +1,5 @@
 #修改TNAME: K2P 中的K2P为你需要编译的型号，注意名称要与configs/templates/目录下的名字相同
-name: YGJK1
+name: 240930
 
 on: 
   release:
@@ -44,7 +44,7 @@ jobs:
         mkdir -p /opt/images/
     - name: Build Firmware
       env:
-        TNAME: YGJK1
+        TNAME: YGJK1/PSG1208/K1/R4A/
         KERNEL: 3.4
       run: |
         cd /opt/rt-n56u/trunk
@@ -68,5 +68,5 @@ jobs:
       uses: actions/upload-artifact@master
       if: always()
       with:
-        name: YGJK1
+        name: 20240930
         path: /opt/images
