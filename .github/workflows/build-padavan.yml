@@ -1,4 +1,4 @@
-name: Padavan-GS
+name: Build Padavan Firmware
 
 on:
   release:
@@ -58,19 +58,23 @@ jobs:
           sudo ./build_firmware_modify $TNAME 0
           sudo mv -f images/*.trx /opt/images/
 
-      - name: Create output directory and copy files
+      - name: Create output directory
         run: |
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
           mkdir -p $OUTPUT_DIR
+
+      - name: Copy .trx files to output directory
+        run: |
+          OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
           cp /opt/images/*.trx $OUTPUT_DIR/
 
-      - name: Package firmware files
+      - name: Package .trx files into ZIP
         id: package
         run: |
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
           ZIP_NAME="padavan-firmware-${{ matrix.model }}-$(date +%Y%m%d%H%M%S).zip"
           cd $OUTPUT_DIR
-          zip -r $ZIP_NAME ./*
+          zip -r $ZIP_NAME *.trx  # 只打包 .trx 文件
           echo "ZIP_PATH=$OUTPUT_DIR/$ZIP_NAME" >> $GITHUB_OUTPUT
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_OUTPUT
 
