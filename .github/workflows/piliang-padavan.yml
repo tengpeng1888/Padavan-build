@@ -2,25 +2,22 @@ name: Build Padavan Firmware
 
 on:
   push:
-    branches: [ "https://github.com/tengpeng1888/rt-n56u.git /opt/rt-n56u" ]  # 触发编译的分支（根据你的仓库修改）
+    branches: [ "main" ]  # 触发编译的分支（根据你的仓库修改）
   workflow_dispatch:      # 允许手动触发编译
-    inputs:
-      router_models:
-        description: 'MZJISU,MT7620,MT7628,K1'
-        required: true
-        default: 'MZJISU,MT7620,MT7628,K1'
 
 jobs:
   build:
     runs-on: ubuntu-latest  # 使用 Ubuntu 最新版环境
     strategy:
       matrix:
-        model: ${{ fromJSON(format('[{0}]', join(fromJSON(format('["{0}"]', github.event.inputs.router_models)), ',')) }}
+        model: [ "MZJISU", "PSG1218", "K1", "MT7620", "MT7628" ]  # 指定型号列表
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive  # 递归克隆子模块（如果仓库有子模块）
+      - name: 克隆指定仓库
+        run: |
+          sudo mkdir -p /opt
+          git clone https://github.com/tengpeng1888/rt-n56u.git /opt/rt-n56u
+          cd /opt/rt-n56u
+          git submodule update --init --recursive
 
       - name: 安装编译依赖
         run: |
@@ -32,18 +29,33 @@ jobs:
             python3 python3-pip unzip
 
       - name: 设置工具链权限
-        run: chmod +x -R tools/*
+        run: |
+          cd /opt/rt-n56u
+          chmod +x -R tools/*
 
       - name: 清理旧编译文件
-        run: make clean
+        run: |
+          cd /opt/rt-n56u
+          make clean
 
       - name: 编译固件
-        run: make ${{ matrix.model }}
+        run: |
+          cd /opt/rt-n56u
+          make ${{ matrix.model }}
+
+      - name: 创建固件目录并复制文件
+        run: |
+          mkdir -p /opt/firmware-output
+          cp /opt/rt-n56u/images/*.trx /opt/firmware-output/
+          cp /opt/rt-n56u/images/*.bin /opt/firmware-output/
+
+      - name: 打包固件文件
+        run: |
+          cd /opt/firmware-output
+          zip -r padavan-firmware-$(date +%Y%m%d).zip ./*
 
       - name: 上传固件产物
         uses: actions/upload-artifact@v3
         with:
-          name: padavan-firmware-${{ matrix.model }}
-          path: |
-            images/*.trx
-            images/*.bin
+          name: padavan-firmware-$(date +%Y%m%d)
+          path: /opt/firmware-output/padavan-firmware-$(date +%Y%m%d).zip
