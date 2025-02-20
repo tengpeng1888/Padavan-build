@@ -90,4 +90,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.ZIP_NAME }}
-          path: ${{ steps.package.outputs.ZIP_PATH }}
+          path: /opt/images
