@@ -62,17 +62,25 @@ jobs:
           sudo ./build_firmware_modify $TNAME 0
           # 将生成的固件移动到全局目录（带唯一前缀）
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          sudo mkdir -p /opt/firmware-output
+          mkdir -p /opt/firmware-output
           sudo mv images/*.trx /opt/firmware-output/${TIMESTAMP}_$TNAME.trx
+
+      - name: Upload .trx files as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.model }}
+          path: /opt/firmware-output/*.trx
 
   package:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Collect .trx files
-        run: |
-          sudo chmod -R 777 /opt/firmware-output
-          ls -l /opt/firmware-output
+      - name: Download .trx files from Artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: /opt/firmware-output
+          pattern: firmware-*
+          merge-multiple: true
 
       - name: Create ZIP
         id: create-zip
