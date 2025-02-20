@@ -66,20 +66,27 @@ jobs:
       - name: Copy .trx files to output directory
         run: |
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
+          # 清空输出目录，避免旧文件干扰
+          rm -rf $OUTPUT_DIR/*
           cp /opt/images/*.trx $OUTPUT_DIR/
+          # 验证文件是否复制成功
+          ls -l $OUTPUT_DIR
 
       - name: Package .trx files into ZIP
         id: package
         run: |
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
-          ZIP_NAME="padavan-firmware-${{ matrix.model }}.zip"
+          ZIP_NAME="padavan-${{ matrix.model }}-$(date +%s).zip"  # 使用时间戳确保唯一性
           cd $OUTPUT_DIR
-          zip -j $ZIP_NAME *.trx  # 使用 -j 参数，忽略目录结构
+          # 确保只打包 .trx 文件，且不包含目录结构
+          zip -j $ZIP_NAME *.trx
           echo "ZIP_PATH=$OUTPUT_DIR/$ZIP_NAME" >> $GITHUB_OUTPUT
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_OUTPUT
+          # 验证 ZIP 内容
+          unzip -l $ZIP_NAME
 
       - name: Upload packages
-        if: success()  # 仅在编译成功时上传
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.ZIP_NAME }}
