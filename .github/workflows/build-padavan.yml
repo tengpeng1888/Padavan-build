@@ -1,4 +1,4 @@
-name: Build Padavan Firmware
+name: Padavan-GS
 
 on:
   release:
