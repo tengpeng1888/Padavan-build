@@ -61,7 +61,7 @@ jobs:
           sudo ./clear_tree
           sudo ./build_firmware_modify $TNAME 0
           # 将生成的固件移动到全局目录（带唯一前缀）
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          TIMESTAMP=$(date +%Y%m%d)  # 仅保留年月日
           mkdir -p /opt/firmware-output
           sudo mv images/*.trx /opt/firmware-output/${TIMESTAMP}_$TNAME.trx
 
@@ -86,7 +86,7 @@ jobs:
         id: create-zip
         run: |
           TIMESTAMP=$(date +%Y%m%d)
-          ZIP_NAME="padavan-all-models-${TIMESTAMP}.zip"
+          ZIP_NAME="PDCN-GS-${TIMESTAMP}.zip"
           cd /opt/firmware-output
           zip -j $ZIP_NAME *.trx
           echo "ZIP_PATH=/opt/firmware-output/$ZIP_NAME" >> $GITHUB_OUTPUT
