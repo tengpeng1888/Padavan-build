@@ -1,0 +1,49 @@
+name: Build Padavan Firmware
+
+on:
+  push:
+    branches: [ "https://github.com/tengpeng1888/rt-n56u.git /opt/rt-n56u" ]  # 触发编译的分支（根据你的仓库修改）
+  workflow_dispatch:      # 允许手动触发编译
+    inputs:
+      router_models:
+        description: 'MZJISU,MT7620,MT7628,K1'
+        required: true
+        default: 'MZJISU,MT7620,MT7628,K1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # 使用 Ubuntu 最新版环境
+    strategy:
+      matrix:
+        model: ${{ fromJSON(format('[{0}]', join(fromJSON(format('["{0}"]', github.event.inputs.router_models)), ',')) }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 递归克隆子模块（如果仓库有子模块）
+
+      - name: 安装编译依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            automake autoconf libtool pkg-config \
+            gcc g++ make flex bison gettext texinfo \
+            libncurses5-dev libgmp3-dev libmpc-dev \
+            python3 python3-pip unzip
+
+      - name: 设置工具链权限
+        run: chmod +x -R tools/*
+
+      - name: 清理旧编译文件
+        run: make clean
+
+      - name: 编译固件
+        run: make ${{ matrix.model }}
+
+      - name: 上传固件产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: padavan-firmware-${{ matrix.model }}
+          path: |
+            images/*.trx
+            images/*.bin
