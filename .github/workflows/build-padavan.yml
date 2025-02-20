@@ -40,58 +40,50 @@ jobs:
           fi
           cd /opt/rt-n56u/toolchain-mipsel
           sh dl_toolchain.sh
-          mkdir -p /opt/images/
 
-      - name: Build Firmware
+      - name: Build Firmware (Per Model)
         env:
           TNAME: ${{ matrix.model }}
           KERNEL: 3.4
         run: |
-          cd /opt/rt-n56u/trunk
+          # 为每个型号创建独立的工作目录
+          MODEL_DIR="/opt/build-${{ matrix.model }}"
+          mkdir -p $MODEL_DIR
+          # 复制源代码到独立目录（避免并发冲突）
+          cp -r /opt/rt-n56u $MODEL_DIR/rt-n56u
+          cd $MODEL_DIR/rt-n56u/trunk
           if [ ! -f configs/templates/$TNAME.config ] ; then
-            echo "configs/templates/$TNAME.config not found "
+            echo "configs/templates/$TNAME.config not found"
             exit 1
           fi
           cp -f configs/templates/$TNAME.config .config
           sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
           sudo ./clear_tree
           sudo ./build_firmware_modify $TNAME 0
-          # 生成时间戳（例如 20250220）
-          TIMESTAMP=$(date +%Y%m%d)
-          # 重命名 .trx 文件（例如 20250220_PSG1218.trx）
-          sudo mv images/*.trx /opt/images/${TIMESTAMP}_$TNAME.trx
+          # 将生成的固件移动到全局目录（带唯一前缀）
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          sudo mkdir -p /opt/firmware-output
+          sudo mv images/*.trx /opt/firmware-output/${TIMESTAMP}_$TNAME.trx
 
-      - name: Create output directory
-        run: |
-          OUTPUT_DIR="/opt/firmware-output"
-          mkdir -p $OUTPUT_DIR
-
-      - name: Copy all .trx files to output directory
-        run: |
-          OUTPUT_DIR="/opt/firmware-output"
-          TIMESTAMP=$(date +%Y%m%d)
-          # 复制所有带时间戳的 .trx 文件
-          cp /opt/images/${TIMESTAMP}_*.trx $OUTPUT_DIR/
-          # 验证文件是否复制成功
-          ls -l $OUTPUT_DIR
-
-      - name: Package all .trx files into a single ZIP
-        id: package
-        run: |
-          OUTPUT_DIR="/opt/firmware-output"
-          TIMESTAMP=$(date +%Y%m%d)
-          ZIP_NAME="padavan-all-models-${TIMESTAMP}.zip"
-          cd $OUTPUT_DIR
-          # 打包所有 .trx 文件
-          zip -j $ZIP_NAME *.trx
-          echo "ZIP_PATH=$OUTPUT_DIR/$ZIP_NAME" >> $GITHUB_OUTPUT
-          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_OUTPUT
-          # 验证 ZIP 内容
-          unzip -l $ZIP_NAME
-
-      - name: Upload single ZIP package
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.package.outputs.ZIP_NAME }}
-          path: /opt/images
+      - name: Package all .trx files into ZIP
+        if: matrix.model == 'PSG1218'  # 仅最后一个任务执行打包
+        runs-on: ubuntu-latest
+        needs: build
+        steps:
+          - name: Collect .trx files
+            run: |
+              sudo chmod -R 777 /opt/firmware-output
+              ls -l /opt/firmware-output
+          - name: Create ZIP
+            run: |
+              TIMESTAMP=$(date +%Y%m%d)
+              ZIP_NAME="padavan-all-models-${TIMESTAMP}.zip"
+              cd /opt/firmware-output
+              zip -j $ZIP_NAME *.trx
+              echo "ZIP_PATH=/opt/firmware-output/$ZIP_NAME" >> $GITHUB_OUTPUT
+              echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_OUTPUT
+          - name: Upload Artifact
+            uses: actions/upload-artifact@v4
+            with:
+              name: ${{ steps.create-zip.outputs.ZIP_NAME }}
+              path: ${{ steps.create-zip.outputs.ZIP_PATH }}
