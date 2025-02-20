@@ -15,7 +15,7 @@ jobs:
     if: github.event.repository.owner.id == github.event.sender.id
     strategy:
       matrix:
-        model: [ "SR1200","TXR-WIFI6","YGJK1","YK-X2","RM10","LINK7","MI-4A-100M","MI-4C","MI-R4A","MTML-CX2","NEWIFI3","B70","HX-1200M","JCG-Q20","K2P","1500MSG","750TH","MZJISU", "PSG1218", "K1", "MT7620", "MT7628" ]
+        model: [ "A3004NS","SR1200","TXR-WIFI6","YGJK1","YK-X2","RM10","LINK7","MI-4A-100M","MI-4C","MI-R4A","MTML-CX2","NEWIFI3","B70","HX-1200M","JCG-Q20","K2P","1500MSG","750TH","MZJISU", "PSG1218", "K1", "MT7620", "MT7628" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
