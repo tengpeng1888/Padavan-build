@@ -63,25 +63,36 @@ jobs:
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
           mkdir -p $OUTPUT_DIR
 
-      - name: Copy .trx files to output directory
+      - name: Copy and rename .trx files to output directory
         run: |
+          TODAY=$(date +'%Y%m%d')  # 获取今天的日期，格式为 YYYYMMDD
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
           # 清空输出目录，避免旧文件干扰
           rm -rf $OUTPUT_DIR/*
-          cp /opt/images/*.trx $OUTPUT_DIR/
-          # 验证文件是否复制成功
+          
+          # 遍历 .trx 文件并重命名
+          for trx_file in /opt/images/*.trx; do
+              TRX_NAME=$(basename $trx_file)
+              NEW_NAME="${TODAY}-${TRX_NAME}"
+              mv $trx_file $OUTPUT_DIR/$NEW_NAME
+          done
+          
+          # 验证文件是否复制和重命名成功
           ls -l $OUTPUT_DIR
 
       - name: Package .trx files into ZIP
         id: package
         run: |
+          TODAY=$(date +'%Y%m%d')  # 获取今天的日期，格式为 YYYYMMDD
           OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
-          ZIP_NAME="padavan-${{ matrix.model }}-$(date +%s).zip"  # 使用时间戳确保唯一性
+          ZIP_NAME="padavan-${{ matrix.model }}-${TODAY}.zip"
           cd $OUTPUT_DIR
+          
           # 确保只打包 .trx 文件，且不包含目录结构
           zip -j $ZIP_NAME *.trx
           echo "ZIP_PATH=$OUTPUT_DIR/$ZIP_NAME" >> $GITHUB_OUTPUT
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_OUTPUT
+          
           # 验证 ZIP 内容
           unzip -l $ZIP_NAME
 
