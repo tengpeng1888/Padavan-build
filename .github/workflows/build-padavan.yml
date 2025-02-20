@@ -60,19 +60,23 @@ jobs:
 
       - name: Create output directory and copy files
         run: |
-          mkdir -p /opt/firmware-output
-          cp /opt/images/*.trx /opt/firmware-output/
+          OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
+          mkdir -p $OUTPUT_DIR
+          cp /opt/images/*.trx $OUTPUT_DIR/
 
       - name: Package firmware files
         id: package
         run: |
-          cd /opt/firmware-output
-          ZIP_NAME="padavan-firmware-$(date +%Y%m%d).zip"
+          OUTPUT_DIR="/opt/firmware-output/${{ matrix.model }}"
+          ZIP_NAME="padavan-firmware-${{ matrix.model }}-$(date +%Y%m%d%H%M%S).zip"
+          cd $OUTPUT_DIR
           zip -r $ZIP_NAME ./*
-          echo "ZIP_PATH=/opt/firmware-output/$ZIP_NAME" >> $GITHUB_OUTPUT
+          echo "ZIP_PATH=$OUTPUT_DIR/$ZIP_NAME" >> $GITHUB_OUTPUT
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload packages
+        if: success()  # 仅在编译成功时上传
         uses: actions/upload-artifact@v4
         with:
-          name: padavan-firmware-${{ steps.package.outputs.ZIP_NAME }}
+          name: ${{ steps.package.outputs.ZIP_NAME }}
           path: ${{ steps.package.outputs.ZIP_PATH }}
