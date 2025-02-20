@@ -55,7 +55,7 @@ jobs:
           zip -r padavan-firmware-$(date +%Y%m%d).zip ./*
 
       - name: 上传固件产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@master
         with:
           name: padavan-firmware-$(date +%Y%m%d)
           path: /opt/firmware-output/padavan-firmware-$(date +%Y%m%d).zip
