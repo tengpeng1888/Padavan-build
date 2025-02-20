@@ -1,61 +1,85 @@
 name: Build Padavan Firmware
 
 on:
+  release:
+    types: [published]
   push:
-    branches: [ "main" ]  # 触发编译的分支（根据你的仓库修改）
-  workflow_dispatch:      # 允许手动触发编译
+    tags:
+      - 'v*'
+  watch:
+    types: [started]
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # 使用 Ubuntu 最新版环境
+    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
     strategy:
       matrix:
         model: [ "MZJISU", "PSG1218", "K1", "MT7620", "MT7628" ]  # 指定型号列表
     steps:
-      - name: 克隆指定仓库
-        run: |
-          sudo mkdir -p /opt
-          git clone https://github.com/tengpeng1888/rt-n56u.git /opt/rt-n56u
-          cd /opt/rt-n56u
-          git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@master
 
-      - name: 安装编译依赖
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            automake autoconf libtool pkg-config \
-            gcc g++ make flex bison gettext texinfo \
-            libncurses5-dev libgmp3-dev libmpc-dev \
-            python3 python3-pip unzip
+          sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
+          cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
+          pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget
 
-      - name: 设置工具链权限
+      - name: Clone source code
+        env:
+          KERNEL: 3.4
         run: |
-          cd /opt/rt-n56u
-          chmod +x -R tools/*
+          if [ $KERNEL = "4.4" ] ; then
+            git clone --depth=1 https://github.com/tengpeng1888/padavan-4.4.git /opt/rt-n56u
+          else
+            git clone --depth=1 https://github.com/tengpeng1888/rt-n56u.git /opt/rt-n56u
+          fi
+          cd /opt/rt-n56u/toolchain-mipsel
+          sh dl_toolchain.sh
+          mkdir -p /opt/images/
 
-      - name: 清理旧编译文件
+      - name: Build Firmware
+        env:
+          TNAME: ${{ matrix.model }}  # 使用 matrix 中的型号
+          KERNEL: 3.4
         run: |
-          cd /opt/rt-n56u
-          make clean
+          cd /opt/rt-n56u/trunk
+          if [ ! -f configs/templates/$TNAME.config ] ; then
+            echo "configs/templates/$TNAME.config not found "
+            exit 1
+          fi
+          cp -f configs/templates/$TNAME.config .config
+          sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
+          ##############################################################################################
+          #########################################################################################
+          #自定义添加其它功能请参考源码configs/templates/目录下的config文件。按照上面的格式添加即可
+          #格式如下：
+          #sed -i '/自定义项/d' .config
+          #echo "自定义项=y" >> .config
+          #########################################################################################
+          sudo ./clear_tree
+          sudo ./build_firmware_modify $TNAME 0
+          sudo mv -f images/*.trx /opt/images/
+          sudo mv -f images/*.bin /opt/images/
 
-      - name: 编译固件
-        run: |
-          cd /opt/rt-n56u
-          make ${{ matrix.model }}
-
-      - name: 创建固件目录并复制文件
+      - name: Create output directory and copy files
         run: |
           mkdir -p /opt/firmware-output
-          cp /opt/rt-n56u/images/*.trx /opt/firmware-output/
-          cp /opt/rt-n56u/images/*.bin /opt/firmware-output/
+          cp /opt/images/*.trx /opt/firmware-output/
+          cp /opt/images/*.bin /opt/firmware-output/
 
-      - name: 打包固件文件
+      - name: Package firmware files
         run: |
           cd /opt/firmware-output
           zip -r padavan-firmware-$(date +%Y%m%d).zip ./*
 
-      - name: 上传固件产物
+      - name: Upload packages
         uses: actions/upload-artifact@master
+        if: always()
         with:
           name: padavan-firmware-$(date +%Y%m%d)
           path: /opt/firmware-output/padavan-firmware-$(date +%Y%m%d).zip
